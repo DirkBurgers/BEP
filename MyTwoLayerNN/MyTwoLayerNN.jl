@@ -13,7 +13,7 @@ const m = 32    # Nuber of hidden neurons
 const n = 4     # Number of data points
 const learning_rate = 0.01
 
-# data
+# Data
 const dataX = [-1/2, -1/3, 1/3, 1/2]
 const dataY = [0.25, 0.03, 0.03, 0.25]
 
