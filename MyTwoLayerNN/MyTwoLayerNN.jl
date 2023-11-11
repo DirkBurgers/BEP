@@ -4,23 +4,13 @@ export main
 using Random, Distributions, BenchmarkTools
 import Plots: plot, scatter!
 
-# Set seed
-Random.seed!(123)
-
 # Constants
-const d = 1     # Dimension data
-const m = 32    # Nuber of hidden neurons
 const n = 4     # Number of data points
 const learning_rate = 0.01
 
 # Data
 const dataX = [-1/2, -1/3, 1/3, 1/2]
 const dataY = [0.25, 0.03, 0.03, 0.25]
-
-# Calculated const
-const α = 1
-const β₁= √(1 / m)
-const β₂= √(1 / d)
 
 # Functions
 σ(x) = max(0, x)
@@ -30,16 +20,28 @@ Rs(x, y) = sum(z -> z^2, x - y) / 2n
 
 # Create structure to store the data
 struct TwoLayerNN
-    w::Vector{Float32}
-    a::Vector{Float32}
-    bias::Vector{Float32}
+    d::Integer                  # Number of input nodes
+    m::Integer                  # Number of nodes in the hidden layer
+    w::Vector{Float32}          # Weights to hidden layer
+    a::Vector{Float32}          # Weights from hidden layer
+    bias::Vector{Float32}       # Bias
+    α::Float32                  # Scaling factor
 end
 TwoLayerNN(d::T, m::T) where {T <: Integer} = begin
-    w::Vector{Float32} = rand(Normal(0, β₂), m)  # Input to layer 1
-    a::Vector{Float32} = rand(Normal(0, β₁), m)  # Layer 1 to output
+    # Set seed
+    Random.seed!(123)
+
+    # Parameters
+    α = 1
+    β₁= √(1 / m)    # TODO set this dynamicly
+    β₂= √(1 / d)
+
+    # Initialize weights and biases
+    w::Vector{Float32} = rand(Normal(0, β₂), m)
+    a::Vector{Float32} = rand(Normal(0, β₁), m)
     bias::Vector{Float32} = rand(Normal(0, β₂), m)
 
-    TwoLayerNN(w, a, bias)
+    TwoLayerNN(d, m, w, a, bias, α)
 end 
 
 function printNN(nn::TwoLayerNN)
@@ -60,21 +62,25 @@ struct TrainingData
 end
 
 # Calculate output of NN
-function forward(nn::TwoLayerNN, x)
-    nn.a' * (σ.(nn.w * x + nn.bias)) / α
+function forward(nn::TwoLayerNN, x::Real)
+    nn.a' * (σ.(nn.w * x + nn.bias)) / nn.α
 end
+forward(nn::TwoLayerNN, x) = map(z -> forward(nn, z), x)
 
 function forwardTrain!(nn::TwoLayerNN, x, inL1::Vector{Float32}, outL1::Vector{Float32})
     inL1 .= nn.w * x + nn.bias
     outL1 .= σ.(inL1)
-    return nn.a' * outL1 / α    
+    return nn.a' * outL1 / nn.α    
 end
 
 function trainNN!(nn::TwoLayerNN, steps::Int32)
     # Create aliases
+    d = nn.d 
+    m = nn.m
     w = nn.w 
     a = nn.a 
     bias = nn.bias
+    α = nn.α
 
     # Allocate memory for weights
     ∇a = zeros(m)
@@ -118,18 +124,20 @@ function trainNN!(nn::TwoLayerNN, steps::Int32)
 end
 
 # Create plot 
-function plotNN(nn::TwoLayerNN, x, y)
-    range = -0.5:0.1:0.5
-    plot(range, map(z -> forward(nn, z), range))
+function plotNN(nn::TwoLayerNN, x, y, range)
+    plot(range, forward(nn, range))
     display(scatter!(x, y))
 end
 
 # Main function
 function main()
+    d = 1     # Dimension data
+    m = 32    # Nuber of hidden neurons
+
     # Create the NN
     myNN = TwoLayerNN(d, m)
 
-    # Set parameters training
+    # Steps
     steps::Int32 = 100_000
 
     # Train
@@ -137,7 +145,7 @@ function main()
     #@benchmark trainNN!($myNN, $steps)
 
     # View result
-    plotNN(myNN, dataX, dataY)
+    plotNN(myNN, dataX, dataY, -0.5:0.1:0.5)
 end;
 
 main()
