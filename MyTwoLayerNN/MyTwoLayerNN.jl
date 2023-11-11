@@ -1,20 +1,14 @@
 module MyTwoLayerNN
-export main
+
 
 using Random, Distributions, BenchmarkTools
-import Plots: plot, scatter!
+import Plots: plot!, scatter
 
-# Constants
-const n = 4     # Number of data points
-const learning_rate = 0.01
-
-# Data
-const dataX = [-1/2, -1/3, 1/3, 1/2]
-const dataY = [0.25, 0.03, 0.03, 0.25]
-
-# Functions
+# Activation functions
 σ(x) = max(0, x)
 ∂σ(x) = x < 0 ? 0 : 1
+
+# Risk function
 Rs(x, y) = sum(z -> z^2, x - y) / 2n
 ∂Rs(x, y) = sum(x - y) / n
 
@@ -56,9 +50,12 @@ function printNN(nn::TwoLayerNN)
 end
 
 # Training data 
-struct TrainingData
-    inHiddenLayer::Vector{Float32}
-    outHiddenLayer::Vector{Float32}
+struct TrainingData 
+    n::Int32
+    x::Vector{Float32}
+    y::Vector{Float32}
+    learning_rate::Float32
+    steps::Int32
 end
 
 # Calculate output of NN
@@ -73,14 +70,21 @@ function forwardTrain!(nn::TwoLayerNN, x, inL1::Vector{Float32}, outL1::Vector{F
     return nn.a' * outL1 / nn.α    
 end
 
-function trainNN!(nn::TwoLayerNN, steps::Int32)
-    # Create aliases
+function trainNN!(nn::TwoLayerNN, trainData::TrainingData)
+    # Create aliases for NN
     d = nn.d 
     m = nn.m
     w = nn.w 
     a = nn.a 
     bias = nn.bias
     α = nn.α
+
+    # Create aliases for Training data 
+    n = trainData.n 
+    dataX = trainData.x
+    dataY = trainData.y
+    learning_rate = trainData.learning_rate
+    steps = trainData.steps
 
     # Allocate memory for weights
     ∇a = zeros(m)
@@ -125,29 +129,9 @@ end
 
 # Create plot 
 function plotNN(nn::TwoLayerNN, x, y, range)
-    plot(range, forward(nn, range))
-    display(scatter!(x, y))
+    scatter(x, y)
+    plotNN(nn, range)
 end
-
-# Main function
-function main()
-    d = 1     # Dimension data
-    m = 32    # Nuber of hidden neurons
-
-    # Create the NN
-    myNN = TwoLayerNN(d, m)
-
-    # Steps
-    steps::Int32 = 100_000
-
-    # Train
-    @time trainNN!(myNN, steps)
-    #@benchmark trainNN!($myNN, $steps)
-
-    # View result
-    plotNN(myNN, dataX, dataY, -0.5:0.1:0.5)
-end;
-
-main()
+plotNN(nn::TwoLayerNN, range) = display(plot!(range, forward(nn, range)))
 
 end;
