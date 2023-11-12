@@ -106,10 +106,22 @@ function trainNN!(nn::TwoLayerNN, trainData::TrainingData)
     ∇w = myTempData.∇w
     ∂bias = myTempData.∇b
 
-    # Allocate memory for velocity
+    # Allocate memory for momentum
+    moma = zeros(m)
+    momw = zeros(m)
+    momb = zeros(m)
+
+    momβ = 0.9
+
     vela = zeros(m)
     velw = zeros(m)
     velb = zeros(m)
+
+    velβ = 0.999
+
+    βp = [momβ, velβ]
+
+    # myOpt = AdamParameters(3*m, 0.9, 0.999, learning_rate)
 
     # TODO: Remove later 
     # checksEvery::Int32 = 100
@@ -126,14 +138,15 @@ function trainNN!(nn::TwoLayerNN, trainData::TrainingData)
             gradiant!(i, nn, trainData, myTempData)
         end
 
-        # Momentum
-        @. vela = 0.9 * vela - learning_rate * ∇a
-        @. velw = 0.9 * velw - learning_rate * ∇w
-        @. velb = 0.9 * velb - learning_rate * ∂bias
+        # Aplly adam
+        doAdam!(moma, vela, momβ, velβ, βp, learning_rate, ∇a, a)
+        doAdam!(momw, velw, momβ, velβ, βp, learning_rate, ∇w, w)
+        doAdam!(momb, velb, momβ, velβ, βp, learning_rate, ∂bias, bias)
 
-        a .+= vela
-        w .+= velw
-        bias .+= velb
+        βp[1] *= momβ
+        βp[2] *= velβ
+
+        # doAdam!(myOpt, ∇a, ∇w, ∂bias, a, w, bias)
 
         # Update weights and bias
         # a .-= learning_rate .* ∇a
@@ -149,6 +162,49 @@ function trainNN!(nn::TwoLayerNN, trainData::TrainingData)
     # TODO remove later
     # (display ∘ plot)(0:checksEvery:steps, errors .|> log10)
     # println("Last risk: $(errors[end])")
+end
+
+struct AllGradients
+    a :: Vector{Float32} 
+    w :: Vector{Float32}
+    b :: Vector{Float32}
+end
+AllGradients(m :: Integer) = AllGradients(zeros(m), zeros(m), zeros(m))
+
+struct AdamParameters
+    m :: Vector{Float32}
+    v :: Vector{Float32}
+    βₘ :: Real
+    βᵥ :: Real
+    βₚ :: Vector{Real}
+    η :: Real
+end
+AdamParameters(l :: Integer, βₘ :: Real, βᵥ :: Real, η :: Real) = begin
+    # Initalize array
+    m = zeros(l)
+    v = zeros(l)
+
+    # Constant
+    AdamParameters(m, v, βₘ, βᵥ, [βₘ, βᵥ], η)
+end
+
+function doAdam!(o::AdamParameters, ∇, w)
+    m, v = o.m, o.v
+    βₘ, βᵥ, βₚ = o.βₘ, o.βᵥ, o.βₚ
+    η = o.η
+
+    @. m = βₘ * m + (1 - βₘ) * ∇
+    @. v = βᵥ * v + (1 - βᵥ) * ∇ * ∇
+    @fastmath @. w -=  η * m / (1 - βₚ[1]) / (√(v / (1 - βₚ[2])) + 1e-8)
+
+    βₚ[1] *= βₘ
+    βₚ[2] *= βᵥ
+end
+
+function doAdam!(m, v, βₘ :: Real, βᵥ :: Real, βₚ, η :: Real, ∇, w)
+    @. m = βₘ * m + (1 - βₘ) * ∇
+    @. v = βᵥ * v + (1 - βᵥ) * ∇ * ∇
+    @fastmath @. w -=  η * m / (1 - βₚ[1]) / (√(v / (1 - βₚ[2])) + 1e-8)
 end
 
 function gradiant!(i::Int64, nn::TwoLayerNN, trainData::TrainingData, temp::TempTrainingData)
