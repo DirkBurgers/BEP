@@ -2,15 +2,15 @@ module MyTwoLayerNN
 
 
 using Random, Distributions, BenchmarkTools
-import Plots: plot!, scatter
+import Plots: plot, plot!, scatter
 
 # Activation functions
 σ(x) = max(0, x)
 ∂σ(x) = x < 0 ? 0 : 1
 
 # Risk function
-Rs(x, y) = sum(z -> z^2, x - y) / 2n
-∂Rs(x, y) = sum(x - y) / n
+Rs(x, y) = sum(z -> z^2, x - y) / (2 * length(x))
+∂Rs(x, y) = sum(x - y) / length(x)
 
 # Create structure to store the data
 struct TwoLayerNN
@@ -21,14 +21,14 @@ struct TwoLayerNN
     bias::Vector{Float32}       # Bias
     α::Float32                  # Scaling factor
 end
-TwoLayerNN(d::T, m::T) where {T <: Integer} = begin
+TwoLayerNN(d::T, m::T, γ::F) where {T <: Integer, F <: Real} = begin
     # Set seed
     Random.seed!(123)
 
     # Parameters
-    α = 1
-    β₁= √(1 / m)    # TODO set this dynamicly
-    β₂= √(1 / d)
+    α = m^γ
+    β₁= 1
+    β₂= 1
 
     # Initialize weights and biases
     w::Vector{Float32} = rand(Normal(0, β₂), m)
@@ -58,6 +58,22 @@ struct TrainingData
     steps::Int32
 end
 
+struct  TempTrainingData
+    ∇a :: Vector{Float32}
+    ∇w :: Vector{Float32}
+    ∇b :: Vector{Float32}
+    inL :: Vector{Float32}
+    outL :: Vector{Float32}
+end
+TempTrainingData(m::Int64) = begin
+    ∇a = zeros(m)
+    ∇w = zeros(m)
+    ∇b = zeros(m)
+    inL = zeros(Float32, m)
+    outL = zeros(Float32, m)
+    TempTrainingData(∇a, ∇w, ∇b, inL, outL)
+end
+
 # Calculate output of NN
 function forward(nn::TwoLayerNN, x::Real)
     nn.a' * (σ.(nn.w * x + nn.bias)) / nn.α
@@ -80,20 +96,24 @@ function trainNN!(nn::TwoLayerNN, trainData::TrainingData)
     α = nn.α
 
     # Create aliases for Training data 
-    n = trainData.n 
-    dataX = trainData.x
-    dataY = trainData.y
+    n = trainData.n
     learning_rate = trainData.learning_rate
     steps = trainData.steps
 
-    # Allocate memory for weights
-    ∇a = zeros(m)
-    ∇w = zeros(m)
-    ∂bias = zeros(m)
-    
-    # Allocate memory for training data 
-    inL1 = zeros(Float32, m)
-    outL1 = zeros(Float32, m)
+    # Allocate memory for gradiants 
+    myTempData = TempTrainingData(m)
+    ∇a = myTempData.∇a
+    ∇w = myTempData.∇w
+    ∂bias = myTempData.∇b
+
+    # Allocate memory for velocity
+    vela = zeros(m)
+    velw = zeros(m)
+    velb = zeros(m)
+
+    # TODO: Remove later 
+    # checksEvery::Int32 = 100
+    # errors = [Rs(forward(nn, dataX), dataY)]
 
     for s = 1:steps
         # Reset gradiants
@@ -103,28 +123,59 @@ function trainNN!(nn::TwoLayerNN, trainData::TrainingData)
 
         # Sum the gradiant for all data points
         for i = 1:n
-            predicted = forwardTrain!(nn, dataX[i], inL1, outL1)
-
-            ∂Risk∂p = (predicted - dataY[i])
-
-            # Calculate ∇a
-            ∇a .+= ∂Risk∂p .* outL1
-
-            # Calculate ∇b
-            ∇w .+= ∂Risk∂p .* dataX[i] .* a .* ∂σ.(inL1)
-
-            # Calculate ∂bias
-            ∂bias .+= ∂Risk∂p .* a .* ∂σ.(inL1)
+            gradiant!(i, nn, trainData, myTempData)
         end
-        ∇a .= ∇a ./ (α * n)
-        ∇w .= ∇w ./ (α * n)
-        ∂bias .= ∂bias ./ (α * n)
+
+        # Momentum
+        @. vela = 0.9 * vela - learning_rate * ∇a
+        @. velw = 0.9 * velw - learning_rate * ∇w
+        @. velb = 0.9 * velb - learning_rate * ∂bias
+
+        a .+= vela
+        w .+= velw
+        bias .+= velb
 
         # Update weights and bias
-        a .-= learning_rate .* ∇a
-        w .-= learning_rate .* ∇w
-        bias .-= ∂bias
+        # a .-= learning_rate .* ∇a
+        # w .-= learning_rate .* ∇w
+        # bias .-= ∂bias
+
+        # TODO remove later 
+        # if (s % checksEvery == 0)
+        #     push!(errors, Rs(forward(nn, dataX), dataY))
+        # end
     end
+
+    # TODO remove later
+    # (display ∘ plot)(0:checksEvery:steps, errors .|> log10)
+    # println("Last risk: $(errors[end])")
+end
+
+function gradiant!(i::Int64, nn::TwoLayerNN, trainData::TrainingData, temp::TempTrainingData)
+    # Aliases 
+    a = nn.a
+    α = nn.α
+    dataX = trainData.x
+    dataY = trainData.y
+    n = trainData.n
+    inL1 = temp.inL
+    outL1 = temp.outL
+    ∇a = temp.∇a
+    ∇w = temp.∇w
+    ∇b = temp.∇b
+
+    predicted = forwardTrain!(nn, dataX[i], inL1, outL1)
+
+    ∂Risk∂p = (predicted - dataY[i]) / (α * n)
+
+    # Calculate ∇a
+    @. ∇a += ∂Risk∂p * outL1
+
+    # Calculate ∇b
+    @. ∇w += ∂Risk∂p * a * ∂σ.(inL1) * dataX[i]
+
+    # Calculate ∇b
+    @. ∇b += ∂Risk∂p * a * ∂σ.(inL1)
 end
 
 # Create plot 
