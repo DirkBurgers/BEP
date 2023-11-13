@@ -87,13 +87,8 @@ function forwardTrain!(nn::TwoLayerNN, x, inL1::Vector{Float32}, outL1::Vector{F
 end
 
 function trainNN!(nn::TwoLayerNN, trainData::TrainingData)
-    # Create aliases for NN
-    d = nn.d 
+    # Create aliases for NN 
     m = nn.m
-    w = nn.w 
-    a = nn.a 
-    bias = nn.bias
-    α = nn.α
 
     # Create aliases for Training data 
     n = trainData.n
@@ -104,24 +99,13 @@ function trainNN!(nn::TwoLayerNN, trainData::TrainingData)
     myTempData = TempTrainingData(m)
     ∇a = myTempData.∇a
     ∇w = myTempData.∇w
-    ∂bias = myTempData.∇b
+    ∇b = myTempData.∇b
 
-    # Allocate memory for momentum
-    moma = zeros(m)
-    momw = zeros(m)
-    momb = zeros(m)
-
-    momβ = 0.9
-
-    vela = zeros(m)
-    velw = zeros(m)
-    velb = zeros(m)
-
-    velβ = 0.999
-
-    βp = [momβ, velβ]
-
-    # myOpt = AdamParameters(3*m, 0.9, 0.999, learning_rate)
+    # Allocate memory for Adam
+    adamParms = (   ma = zeros(m), mw = zeros(m), mb = zeros(m), 
+                    va = zeros(m), vw = zeros(m), vb = zeros(m), 
+                    βₘ = 0.9, βᵥ = 0.999, βₚ = [0.9, 0.999], η = learning_rate
+                )
 
     # TODO: Remove later 
     # checksEvery::Int32 = 100
@@ -131,27 +115,15 @@ function trainNN!(nn::TwoLayerNN, trainData::TrainingData)
         # Reset gradiants
         ∇a .= 0
         ∇w .= 0
-        ∂bias .= 0
+        ∇b .= 0
 
         # Sum the gradiant for all data points
         for i = 1:n
-            gradiant!(i, nn, trainData, myTempData)
+            updateGradiant!(i, nn, trainData, myTempData)
         end
 
         # Aplly adam
-        doAdam!(moma, vela, momβ, velβ, βp, learning_rate, ∇a, a)
-        doAdam!(momw, velw, momβ, velβ, βp, learning_rate, ∇w, w)
-        doAdam!(momb, velb, momβ, velβ, βp, learning_rate, ∂bias, bias)
-
-        βp[1] *= momβ
-        βp[2] *= velβ
-
-        # doAdam!(myOpt, ∇a, ∇w, ∂bias, a, w, bias)
-
-        # Update weights and bias
-        # a .-= learning_rate .* ∇a
-        # w .-= learning_rate .* ∇w
-        # bias .-= ∂bias
+        applyAdam!(adamParms, nn, myTempData)
 
         # TODO remove later 
         # if (s % checksEvery == 0)
@@ -164,50 +136,22 @@ function trainNN!(nn::TwoLayerNN, trainData::TrainingData)
     # println("Last risk: $(errors[end])")
 end
 
-struct AllGradients
-    a :: Vector{Float32} 
-    w :: Vector{Float32}
-    b :: Vector{Float32}
-end
-AllGradients(m :: Integer) = AllGradients(zeros(m), zeros(m), zeros(m))
+function applyAdam!(o, nn::TwoLayerNN, temp::TempTrainingData)
+    applyAdam!(o.ma, o.va, o.βₘ, o.βᵥ, o.βₚ, o.η, temp.∇a, nn.a)
+    applyAdam!(o.mw, o.vw, o.βₘ, o.βᵥ, o.βₚ, o.η, temp.∇w, nn.w)
+    applyAdam!(o.mb, o.vb, o.βₘ, o.βᵥ, o.βₚ, o.η, temp.∇b, nn.bias)
 
-struct AdamParameters
-    m :: Vector{Float32}
-    v :: Vector{Float32}
-    βₘ :: Real
-    βᵥ :: Real
-    βₚ :: Vector{Real}
-    η :: Real
-end
-AdamParameters(l :: Integer, βₘ :: Real, βᵥ :: Real, η :: Real) = begin
-    # Initalize array
-    m = zeros(l)
-    v = zeros(l)
-
-    # Constant
-    AdamParameters(m, v, βₘ, βᵥ, [βₘ, βᵥ], η)
+    o.βₚ[1] *= o.βₘ
+    o.βₚ[2] *= o.βᵥ
 end
 
-function doAdam!(o::AdamParameters, ∇, w)
-    m, v = o.m, o.v
-    βₘ, βᵥ, βₚ = o.βₘ, o.βᵥ, o.βₚ
-    η = o.η
-
-    @. m = βₘ * m + (1 - βₘ) * ∇
-    @. v = βᵥ * v + (1 - βᵥ) * ∇ * ∇
-    @fastmath @. w -=  η * m / (1 - βₚ[1]) / (√(v / (1 - βₚ[2])) + 1e-8)
-
-    βₚ[1] *= βₘ
-    βₚ[2] *= βᵥ
-end
-
-function doAdam!(m, v, βₘ :: Real, βᵥ :: Real, βₚ, η :: Real, ∇, w)
+function applyAdam!(m, v, βₘ :: Real, βᵥ :: Real, βₚ, η :: Real, ∇, w)
     @. m = βₘ * m + (1 - βₘ) * ∇
     @. v = βᵥ * v + (1 - βᵥ) * ∇ * ∇
     @fastmath @. w -=  η * m / (1 - βₚ[1]) / (√(v / (1 - βₚ[2])) + 1e-8)
 end
 
-function gradiant!(i::Int64, nn::TwoLayerNN, trainData::TrainingData, temp::TempTrainingData)
+function updateGradiant!(i::Int64, nn::TwoLayerNN, trainData::TrainingData, temp::TempTrainingData)
     # Aliases 
     a = nn.a
     α = nn.α
