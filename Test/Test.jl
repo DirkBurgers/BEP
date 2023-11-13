@@ -1,45 +1,14 @@
 module Test
 
-using LinearAlgebra, Plots
-
 include("../MyTwoLayerNN/MyTwoLayerNN.jl")
-
-function summaryNN(nn::MyTwoLayerNN.TwoLayerNN)
-    println("d = $(nn.d), m = $(nn.m), α = $(nn.α)")
-    
-    w_max = max(nn.w ...)
-    w_min = min(nn.w ...)
-    w_avg = sum(nn.w) / length(nn.w)
-    println("w: max = $w_max, min = $w_min, avg = $w_avg")
-
-    a_max = max(nn.a ...)
-    a_min = min(nn.a ...)
-    a_avg = sum(nn.a) / length(nn.a)
-    println("a: max = $a_max, min = $a_min, avg = $a_avg")
-
-    b_max = max(nn.bias ...)
-    b_min = min(nn.bias ...)
-    b_avg = sum(nn.bias) / length(nn.bias)
-    println("Bias: max = $b_max, min = $b_min, avg = $b_avg")
-end
-
-function orientationPlot(old, new)
-    ampOld = abs.(old.a) .* norm.(zip(old.w, old.bias))
-    ampNew = abs.(new.a) .* norm.(zip(new.w, new.bias))
-
-    oriOld = angle.(old.w .+ im .* old.bias)
-    oriNew = angle.(new.w .+ im .* new.bias)
-
-    Plots.scatter(oriOld, ampOld)
-    Plots.display(Plots.scatter!(oriNew, ampNew))
-end
+include("../MyTwoLayerNN/plotsNN.jl")
 
 function main()
     # Create the NN
-    d = 1     # Dimension data
+    d = 1       # Dimension data
     m = 1000    # Nuber of hidden neurons
-    γ = 1.5
-    γ′ = 0.0
+    γ = 0.5
+    γ′ = 0
     myNN = MyTwoLayerNN.TwoLayerNN(d, m, γ, γ′)
 
     # Create training data 
@@ -51,18 +20,16 @@ function main()
     myTrainingData = MyTwoLayerNN.TrainingData(n, dataX, dataY, learning_rate, steps)
 
     # Create copy of initial weights and biases
-    initParms = (a = copy(myNN.a), w = copy(myNN.w), bias = copy(myNN.bias))
+    initParms = (a = copy(myNN.a), w = copy(myNN.w), b = copy(myNN.b))
 
     # Train
-    @time MyTwoLayerNN.trainNN!(myNN, myTrainingData)
+    @time MyTwoLayerNN.train!(myNN, myTrainingData)
     #@benchmark trainNN!($myNN, $steps)
 
     # View result
-    MyTwoLayerNN.plotNN(myNN, dataX, dataY, -0.5:0.1:0.5)
-
-    # Create orientation plot
+    plotNN(myNN, dataX, dataY, -0.5:0.1:0.5)
     orientationPlot(initParms, myNN)
-    summaryNN(myNN)
+    MyTwoLayerNN.summary(myNN)
 end;
 
 main()
