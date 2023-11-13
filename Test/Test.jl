@@ -1,5 +1,7 @@
 module Test
 
+using LinearAlgebra, Plots
+
 include("../MyTwoLayerNN/MyTwoLayerNN.jl")
 
 function summaryNN(nn::MyTwoLayerNN.TwoLayerNN)
@@ -21,12 +23,24 @@ function summaryNN(nn::MyTwoLayerNN.TwoLayerNN)
     println("Bias: max = $b_max, min = $b_min, avg = $b_avg")
 end
 
+function orientationPlot(old, new)
+    ampOld = abs.(old.a) .* norm.(zip(old.w, old.bias))
+    ampNew = abs.(new.a) .* norm.(zip(new.w, new.bias))
+
+    oriOld = angle.(old.w .+ im .* old.bias)
+    oriNew = angle.(new.w .+ im .* new.bias)
+
+    Plots.scatter(oriOld, ampOld)
+    Plots.display(Plots.scatter!(oriNew, ampNew))
+end
+
 function main()
     # Create the NN
     d = 1     # Dimension data
     m = 1000    # Nuber of hidden neurons
-    γ = 1
-    myNN = MyTwoLayerNN.TwoLayerNN(d, m, γ)
+    γ = 1.5
+    γ′ = 0.0
+    myNN = MyTwoLayerNN.TwoLayerNN(d, m, γ, γ′)
 
     # Create training data 
     n = 4
@@ -36,13 +50,19 @@ function main()
     steps::Int32 = 10_000
     myTrainingData = MyTwoLayerNN.TrainingData(n, dataX, dataY, learning_rate, steps)
 
+    # Create copy of initial weights and biases
+    initParms = (a = copy(myNN.a), w = copy(myNN.w), bias = copy(myNN.bias))
+
     # Train
     @time MyTwoLayerNN.trainNN!(myNN, myTrainingData)
     #@benchmark trainNN!($myNN, $steps)
 
     # View result
-    #summaryNN(myNN)
     MyTwoLayerNN.plotNN(myNN, dataX, dataY, -0.5:0.1:0.5)
+
+    # Create orientation plot
+    orientationPlot(initParms, myNN)
+    summaryNN(myNN)
 end;
 
 main()

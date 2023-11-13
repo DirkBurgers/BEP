@@ -21,14 +21,14 @@ struct TwoLayerNN
     bias::Vector{Float32}       # Bias
     α::Float32                  # Scaling factor
 end
-TwoLayerNN(d::T, m::T, γ::F) where {T <: Integer, F <: Real} = begin
+TwoLayerNN(d::T, m::T, γ::F, γ′::F) where {T <: Integer, F <: Real} = begin
     # Set seed
     Random.seed!(123)
 
     # Parameters
-    α = m^γ
-    β₁= 1
-    β₂= 1
+    α = m^(γ + γ′)
+    β₁= m^(-γ′)
+    β₂= d^(-γ′)
 
     # Initialize weights and biases
     w::Vector{Float32} = rand(Normal(0, β₂), m)
