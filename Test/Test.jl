@@ -7,15 +7,18 @@ function main()
     # Create the NN
     d = 1       # Dimension data
     m = 1000    # Nuber of hidden neurons
-    γ = 0.5
+    γ = 1
     γ′ = 0
     myNN = MyTwoLayerNN.TwoLayerNN(d, m, γ, γ′)
 
     # Create training data 
     n = 4
-    dataX = [-1/2, -1/3, 1/3, 1/2]
+    dataX = [[-1/2], [-1/3], [1/3], [1/2]]
     dataY = [0.25, 0.03, 0.03, 0.25]
-    learning_rate = 1                 # for α = √m -> 1.5
+    # dataX = [[-1/2, -1/2], [-1/3, -1/3], [1/3, 1/3], [1/2, 1/2]]
+    # dataY = [0.25, 0.03, 0.03, 0.25]
+
+    learning_rate = 0.01                 # for α = √m -> 1.5
     steps::Int32 = 10_000
     myTrainingData = MyTwoLayerNN.TrainingData(n, dataX, dataY, learning_rate, steps)
 

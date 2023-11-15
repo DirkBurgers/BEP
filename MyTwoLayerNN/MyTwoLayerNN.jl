@@ -15,7 +15,7 @@ Rs(x, y) = sum(z -> z^2, x - y) / (2 * length(x))
 struct TwoLayerNN
     d::Integer                  # Number of input nodes
     m::Integer                  # Number of nodes in the hidden layer
-    w::Vector{Float64}          # Weights to hidden layer
+    w::Matrix{Float64}          # Weights to hidden layer
     a::Vector{Float64}          # Weights from hidden layer
     b::Vector{Float64}          # Bias
     α::Float64                  # Scaling factor
@@ -30,7 +30,7 @@ TwoLayerNN(d::T, m::T, γ, γ′) where {T <: Integer} = begin
     β₂= d^(-γ′)
 
     # Initialize weights and biases
-    w::Vector{Float64} = rand(Normal(0, β₂), m)
+    w::Matrix{Float64} = rand(Normal(0, β₂), m, d)
     a::Vector{Float64} = rand(Normal(0, β₁), m)
     b::Vector{Float64} = rand(Normal(0, β₂), m)
 
@@ -41,41 +41,44 @@ end
 # Structure to store the training data 
 struct TrainingData 
     n::Int32
-    x::Vector{Float64}
+    x::Vector{Vector{Float64}}
     y::Vector{Float64}
     learning_rate::Float64
     steps::Int32
 end
 
 # Calculate output of NN
-function forward(nn::TwoLayerNN, x::Real)
-    nn.a' * (σ.(nn.w * x + nn.b)) / nn.α
+function forward(nn::TwoLayerNN, x::Vector{T}) where {T <: Real}
+    nn.a' * (σ.(nn.w * x .+ nn.b)) ./ nn.α
 end
-forward(nn::TwoLayerNN, x) = map(z -> forward(nn, z), x)
+forward(nn::TwoLayerNN, x::T) where {T <: Real} = forward(nn, [x])
+forward(nn::TwoLayerNN, x::Vector{Vector{T}}) where {T <: Real} = map(z -> forward(nn, z), x)
+forward(nn::TwoLayerNN, x::AbstractRange{T}) where {T <: Real} = map(z -> forward(nn, z), x)
 
 function forward!(nn::TwoLayerNN, x, inHL::Vector{T}, outHL::Vector{T}) where {T <: Real}
-    inHL .= nn.w * x + nn.b
+    inHL .= nn.w * x .+ nn.b
     outHL .= σ.(inHL)
-    return nn.a' * outHL / nn.α    
+    return nn.a' * outHL ./ nn.α    
 end
 
 # Trains the NN with the training data
 function train!(nn::TwoLayerNN, trainData::TrainingData)
     # Create aliases for data 
+    d = nn.d
     m = nn.m
     n = trainData.n
     steps = trainData.steps
 
     # Allocate memory for gradiants and values that go in the hidden layer and out
     gradData = (
-        ∇a = zeros(m), ∇w = zeros(m), ∇b = zeros(m), 
+        ∇a = zeros(m), ∇w = zeros(m, d), ∇b = zeros(m), 
         inL = zeros(m), outL = zeros(m)
     )
 
     # Allocate memory for Adam optimization
     adamParms = (
-        ma = zeros(m), mw = zeros(m), mb = zeros(m), 
-        va = zeros(m), vw = zeros(m), vb = zeros(m), 
+        ma = zeros(m), mw = zeros(m, d), mb = zeros(m), 
+        va = zeros(m), vw = zeros(m, d), vb = zeros(m), 
         βₘ = 0.9, βᵥ = 0.999, βₚ = [0.9, 0.999], η = trainData.learning_rate
     )
 
@@ -122,7 +125,7 @@ function updateGradiant!(i, nn::TwoLayerNN, trainData::TrainingData, ∇data)
     @. ∇a += ∂Risk∂p * outHL
 
     # Calculate ∇b
-    @. ∇w += ∂Risk∂p * a * ∂σ.(inHL) * dataX[i]
+    @. ∇w += ∂Risk∂p * a * ∂σ.(inHL) * dataX[i]'
 
     # Calculate ∇b
     @. ∇b += ∂Risk∂p * a * ∂σ.(inHL)
