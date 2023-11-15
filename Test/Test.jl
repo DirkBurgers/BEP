@@ -18,7 +18,7 @@ function main()
     # dataX = [[-1/2, -1/2], [-1/3, -1/3], [1/3, 1/3], [1/2, 1/2]]
     # dataY = [0.25, 0.03, 0.03, 0.25]
 
-    learning_rate = 0.01                 # for α = √m -> 1.5
+    learning_rate = 0.01
     steps::Int32 = 10_000
     myTrainingData = MyTwoLayerNN.TrainingData(n, dataX, dataY, learning_rate, steps)
 
@@ -30,9 +30,9 @@ function main()
     #@benchmark trainNN!($myNN, $steps)
 
     # View result
+    MyTwoLayerNN.summary(myNN)
     plotNN(myNN, dataX, dataY, -0.5:0.1:0.5)
     orientationPlot(initParms, myNN)
-    MyTwoLayerNN.summary(myNN)
 end;
 
 main()
