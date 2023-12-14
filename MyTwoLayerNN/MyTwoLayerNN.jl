@@ -2,7 +2,6 @@ module MyTwoLayerNN
 
 using Random, Distributions
 
-
 # Activation functions
 σ(x) = max(0, x)
 ∂σ(x) = x < 0 ? 0 : 1
@@ -20,14 +19,14 @@ struct TwoLayerNN
     b::Vector{Float64}          # Bias
     α::Float64                  # Scaling factor
 end
-TwoLayerNN(d::T, m::T, γ, γ′) where {T <: Integer} = begin
+TwoLayerNN(d::T, m::T, γ::Float64, γ′::Float64) where {T <: Integer} = begin
     # Set seed
     Random.seed!(123)
 
     # Parameters
-    α = m^(γ + γ′)
-    β₁= m^(-γ′)
-    β₂= d^(-γ′)
+    α = m^(γ - γ′)
+    β₁ = m^(-γ′)
+    β₂ = d^(-γ′)
 
     # Initialize weights and biases
     w::Matrix{Float64} = rand(Normal(0, β₂), m, d)
@@ -36,7 +35,8 @@ TwoLayerNN(d::T, m::T, γ, γ′) where {T <: Integer} = begin
 
     # Create the NN
     TwoLayerNN(d, m, w, a, b, α)
-end 
+end
+TwoLayerNN(d::T, m::T, γ, γ′) where {T <: Integer} = TwoLayerNN(d, m, convert(Float64, γ), convert(Float64, γ′))
 
 # Structure to store the training data 
 struct TrainingData 
@@ -46,6 +46,9 @@ struct TrainingData
     learning_rate::Float64
     steps::Int32
 end
+
+# Include files 
+include("optimizers.jl")
 
 # Calculate output of NN
 function forward(nn::TwoLayerNN, x::Vector{T}) where {T <: Real}
@@ -75,28 +78,23 @@ function train!(nn::TwoLayerNN, trainData::TrainingData)
         inL = zeros(m), outL = zeros(m)
     )
 
-    # Allocate memory for Adam optimization
-    adamParms = (
-        ma = zeros(m), mw = zeros(m, d), mb = zeros(m), 
-        va = zeros(m), vw = zeros(m, d), vb = zeros(m), 
-        βₘ = 0.9, βᵥ = 0.999, βₚ = [0.9, 0.999], η = trainData.learning_rate
-    )
+    # Initialize optimizer
+    optimizer = AdamOptimizer(nn, trainData.learning_rate)
 
     # Gradient descent
-    for s = 1:steps
+    for _ = 1:steps
         # Reset gradiants
         fill!(gradData.∇a, 0)
         fill!(gradData.∇w, 0)
         fill!(gradData.∇b, 0)
 
-        # Sum the gradiant for all data points
+        # Sum the gradiant for all data points in the training data
         for i = 1:n
             updateGradiant!(i, nn, trainData, gradData)
         end
 
-        # Apply adam
-        applyAdam!(adamParms, nn, gradData)
-
+        # Apply the optimizer
+        applyOptimizer!(optimizer, nn, gradData)
     end
 end
 
@@ -129,22 +127,6 @@ function updateGradiant!(i, nn::TwoLayerNN, trainData::TrainingData, ∇data)
 
     # Calculate ∇b
     @. ∇b += ∂Risk∂p * a * ∂σ.(inHL)
-end
-
-# Optimization method - used to update the ∇
-function applyAdam!(o, nn::TwoLayerNN, ∇data)
-    applyAdam!(o.ma, o.va, o.βₘ, o.βᵥ, o.βₚ, o.η, ∇data.∇a, nn.a)
-    applyAdam!(o.mw, o.vw, o.βₘ, o.βᵥ, o.βₚ, o.η, ∇data.∇w, nn.w)
-    applyAdam!(o.mb, o.vb, o.βₘ, o.βᵥ, o.βₚ, o.η, ∇data.∇b, nn.b)
-
-    o.βₚ[1] *= o.βₘ
-    o.βₚ[2] *= o.βᵥ
-end
-
-function applyAdam!(m, v, βₘ :: Real, βᵥ :: Real, βₚ, η :: Real, ∇, w)
-    @. m = βₘ * m + (1 - βₘ) * ∇
-    @. v = βᵥ * v + (1 - βᵥ) * ∇ * ∇
-    @fastmath @. w -=  η * m / (1 - βₚ[1]) / (√(v / (1 - βₚ[2])) + 1e-8)
 end
 
 # Creates a short summary of the NN

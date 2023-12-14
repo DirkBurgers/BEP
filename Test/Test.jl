@@ -1,13 +1,15 @@
 module Test
 
+using BenchmarkTools
+
 include("../MyTwoLayerNN/MyTwoLayerNN.jl")
 include("../MyTwoLayerNN/plotsNN.jl")
 
 function main()
     # Create the NN
     d = 1       # Dimension data
-    m = 1000    # Nuber of hidden neurons
-    γ = 1
+    m = 10_000    # Nuber of hidden neurons
+    γ = 0.5
     γ′ = 0
     myNN = MyTwoLayerNN.TwoLayerNN(d, m, γ, γ′)
 
