@@ -1,5 +1,3 @@
-module Test
-
 using BenchmarkTools
 
 include("../MyTwoLayerNN/MyTwoLayerNN.jl")
@@ -38,5 +36,3 @@ function main()
 end;
 
 main()
-
-end;

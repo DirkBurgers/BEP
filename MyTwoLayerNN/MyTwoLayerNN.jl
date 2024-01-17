@@ -89,7 +89,7 @@ function train!(nn::TwoLayerNN, trainData::TrainingData)
         fill!(gradData.∇b, 0)
 
         # Sum the gradiant for all data points in the training data
-        for i = 1:n
+        @simd for i = 1:n
             updateGradiant!(i, nn, trainData, gradData)
         end
 

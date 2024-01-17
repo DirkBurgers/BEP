@@ -46,7 +46,7 @@ function applyOptimizer!(o::AdamOptimizer, nn::TwoLayerNN, ∇data)
     o.βₚ[2] *= o.βᵥ
 end
 
-function _adamstep!(m, v, βₘ :: Real, βᵥ :: Real, βₚ, η :: Real, ∇, w)
+function _adamstep!(m, v, βₘ, βᵥ, βₚ, η, ∇, w) 
     @. m = βₘ * m + (1 - βₘ) * ∇
     @. v = βᵥ * v + (1 - βᵥ) * ∇ * ∇
     @fastmath @. w -=  η * m / (1 - βₚ[1]) / (√(v / (1 - βₚ[2])) + 1e-8)
