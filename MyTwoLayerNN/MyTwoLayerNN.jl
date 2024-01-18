@@ -11,13 +11,11 @@ Rs(x, y) = sum(z -> z^2, x - y) / (2 * length(x))
 ∂Rs(x, y) = sum(x - y) / length(x)
 
 # Creates structure to store the NN data
-struct TwoLayerNN
-    d::Integer                  # Number of input nodes
-    m::Integer                  # Number of nodes in the hidden layer
-    w::Matrix{Float64}          # Weights to hidden layer
-    a::Vector{Float64}          # Weights from hidden layer
-    b::Vector{Float64}          # Bias
-    α::Float64                  # Scaling factor
+struct TwoLayerNN{T<:Real}
+    w::Matrix{T}          # Weights to hidden layer
+    a::Vector{T}          # Weights from hidden layer
+    b::Vector{T}          # Bias
+    α::T                  # Scaling factor
 end
 TwoLayerNN(d::T, m::T, γ::Float64, γ′::Float64) where {T <: Integer} = begin
     # Set seed
@@ -34,16 +32,15 @@ TwoLayerNN(d::T, m::T, γ::Float64, γ′::Float64) where {T <: Integer} = begin
     b::Vector{Float64} = rand(Normal(0, β₂), m)
 
     # Create the NN
-    TwoLayerNN(d, m, w, a, b, α)
+    TwoLayerNN(w, a, b, α)
 end
 TwoLayerNN(d::T, m::T, γ, γ′) where {T <: Integer} = TwoLayerNN(d, m, convert(Float64, γ), convert(Float64, γ′))
 
 # Structure to store the training data 
-struct TrainingData 
-    n::Int32
-    x::Vector{Vector{Float64}}
-    y::Vector{Float64}
-    learning_rate::Float64
+struct TrainingData{T<:Real}
+    x::Vector{Vector{T}}
+    y::Vector{T}
+    learning_rate::T
     steps::Int32
 end
 
@@ -66,16 +63,13 @@ end
 
 # Trains the NN with the training data
 function train!(nn::TwoLayerNN, trainData::TrainingData)
-    # Create aliases for data 
-    d = nn.d
-    m = nn.m
-    n = trainData.n
+    # Create aliases for data
     steps = trainData.steps
 
     # Allocate memory for gradiants and values that go in the hidden layer and out
     gradData = (
-        ∇a = zeros(m), ∇w = zeros(m, d), ∇b = zeros(m), 
-        inL = zeros(m), outL = zeros(m)
+        ∇a = zero(nn.a), ∇w = zero(nn.w), ∇b = zero(nn.b), 
+        inL = zero(nn.b), outL = zero(nn.a)
     )
 
     # Initialize optimizer
@@ -84,13 +78,13 @@ function train!(nn::TwoLayerNN, trainData::TrainingData)
     # Gradient descent
     for _ = 1:steps
         # Reset gradiants
-        fill!(gradData.∇a, 0)
-        fill!(gradData.∇w, 0)
-        fill!(gradData.∇b, 0)
+        fill!(gradData.∇a, 0.)
+        fill!(gradData.∇w, 0.)
+        fill!(gradData.∇b, 0.)
 
         # Sum the gradiant for all data points in the training data
-        @simd for i = 1:n
-            updateGradiant!(i, nn, trainData, gradData)
+        for (x, y) ∈ zip(trainData.x, trainData.y)
+            updateGradiant!(gradData, nn, x, y)
         end
 
         # Apply the optimizer
@@ -99,40 +93,34 @@ function train!(nn::TwoLayerNN, trainData::TrainingData)
 end
 
 # Calculates the ∇ of the NN with the ith data point and adds it to the total ∇ 
-function updateGradiant!(i, nn::TwoLayerNN, trainData::TrainingData, ∇data)
+function updateGradiant!(grads, nn::TwoLayerNN, x, y)
     # Aliases 
+    inHL = grads.inL
+    outHL = grads.outL
+    ∇a = grads.∇a
+    ∇w = grads.∇w
+    ∇b = grads.∇b
+    
     a = nn.a
     α = nn.α
-    dataX = trainData.x
-    dataY = trainData.y
-    n = trainData.n
-    inHL = ∇data.inL
-    outHL = ∇data.outL
-    ∇a = ∇data.∇a
-    ∇w = ∇data.∇w
-    ∇b = ∇data.∇b
 
     # Calculate the prediction of ith data point and store 
     # the values that went in and out the hidden layer
-    predicted = forward!(nn, dataX[i], inHL, outHL)
+    predicted = forward!(nn, x, inHL, outHL)
 
     # Calculate the gradiants
-    ∂Risk∂p = (predicted - dataY[i]) / (α * n)
+    ∂Risk∂p = (predicted - y) / (α * length(x))
 
-    # Calculate ∇a
+    # Update ∇
     @. ∇a += ∂Risk∂p * outHL
-
-    # Calculate ∇b
-    @. ∇w += ∂Risk∂p * a * ∂σ.(inHL) * dataX[i]'
-
-    # Calculate ∇b
+    @. ∇w += ∂Risk∂p * a * ∂σ.(inHL) * x'
     @. ∇b += ∂Risk∂p * a * ∂σ.(inHL)
 end
 
 # Creates a short summary of the NN
 function summary(nn::TwoLayerNN)
     printstyled("Summary of neural network 🧠: \n", color = :blue)
-    println("d = $(nn.d), m = $(nn.m), α = $(nn.α)")
+    println("d = $(size(nn.w)[2]), m = $(size(nn.w)[1]), α = $(nn.α)")
     
     w_max = max(nn.w ...)
     w_min = min(nn.w ...)

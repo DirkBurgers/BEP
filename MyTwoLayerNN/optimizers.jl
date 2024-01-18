@@ -18,7 +18,7 @@ end
 # --------------------------------------------------
 # Adam Optimizer 
 # --------------------------------------------------
-struct AdamOptimizer{T<:AbstractFloat, B<:AbstractFloat, N<:Real} <: AbstractOptimizer
+struct AdamOptimizer{T<:Real, B<:Real, N<:Real} <: AbstractOptimizer
     ma::Vector{T}
     mw::Matrix{T}
     mb::Vector{T}
