@@ -1,0 +1,8 @@
+m = 10_000
+gamma prime = 0
+α = m^(γ - γ′), β₁ = m^(-γ′), β₂ = d^(-γ′)
+Optimizer: Gradient descent
+
+learning rate (gamma 0.5) = 0.001
+learning rate (gamma 1.0) = 100
+learning rate (gamma 1.75) = 100_000

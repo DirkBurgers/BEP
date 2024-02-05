@@ -1,0 +1,45 @@
+Gamma 0.5
+learning rate = 0.1
+
+Number of steps: 4507
+Number of steps: 3043
+Number of steps: 1873
+Number of steps: 1580
+Number of steps: 1526
+
+0.031355910579107735
+0.011971753769764561
+0.009061705004831198
+0.007675501201773026
+0.007004101852276094
+
+Gamma 1.0
+learning rate = 100.0
+
+Number of steps: 1951
+Number of steps: 9961
+Number of steps: 19660
+Number of steps: 39204
+Number of steps: 78704
+
+RDs
+0.9790860353754123
+0.9970837800367054
+0.9830897711001594
+0.9883162958928993
+0.9874681609212911
+
+Gamma 1.75
+learning rate = 100_000.0
+
+Number of steps: 645
+Number of steps: 11859
+Number of steps: 41444
+Number of steps: 145375
+Number of steps: 5123 (With learning rate 10_000_000.0)
+
+17.994841243823455
+32.91485683647934
+42.592951731574445
+55.76371996904864
+72.0776358543959
