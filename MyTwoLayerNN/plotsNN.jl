@@ -8,7 +8,7 @@ function plotNN(nn::MyTwoLayerNN.TwoLayerNN, x, y, range)
     scatter(x .|> z -> z[1], y)
     plotNN(nn, range)
 end
-plotNN(nn::MyTwoLayerNN.TwoLayerNN, range) = plot!(range, MyTwoLayerNN.forward(nn, range)) |> display
+plotNN(nn::MyTwoLayerNN.TwoLayerNN, range) = plot!(range, [MyTwoLayerNN.forward(nn, x) for x in range]) |> display
 
 # Orientation plot
 function orientationPlot(old, new)

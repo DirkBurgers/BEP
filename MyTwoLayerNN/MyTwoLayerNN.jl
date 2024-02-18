@@ -2,6 +2,12 @@ module MyTwoLayerNN
 
 using Random, Distributions
 
+export TwoLayerNN, TrainingData, train!, forward, summary
+
+# Constants
+const SEED = 123
+const TOLARANCY = 1e-6
+
 # Activation functions
 σ(x) = max(0, x)
 ∂σ(x) = x < 0 ? 0 : 1
@@ -19,12 +25,16 @@ struct TwoLayerNN{T<:Real}
 end
 TwoLayerNN(d::T, m::T, γ::Float64, γ′::Float64) where {T <: Integer} = begin
     # Set seed
-    Random.seed!(123)
+    Random.seed!(SEED)
 
     # Parameters
     α = m^(γ - γ′)
     β₁ = m^(-γ′)
     β₂ = d^(-γ′)
+
+    # α = 1.0
+    # β₁ = m^(-(γ + γ′) / 2)
+    # β₂ = m^(-(γ - γ′) / 2)
 
     # Initialize weights and biases
     w::Matrix{Float64} = rand(Normal(0, β₂), m, d)
@@ -37,11 +47,11 @@ end
 TwoLayerNN(d::T, m::T, γ, γ′) where {T <: Integer} = TwoLayerNN(d, m, convert(Float64, γ), convert(Float64, γ′))
 
 # Structure to store the training data 
-struct TrainingData{T<:Real}
+struct TrainingData{T<:Real, S<:Integer}
     x::Vector{Vector{T}}
     y::Vector{T}
     learning_rate::T
-    steps::Int32
+    steps::S
 end
 
 # Include files 
@@ -53,7 +63,6 @@ function forward(nn::TwoLayerNN, x::Vector{T}) where {T <: Real}
 end
 forward(nn::TwoLayerNN, x::T) where {T <: Real} = forward(nn, [x])
 forward(nn::TwoLayerNN, x::Vector{Vector{T}}) where {T <: Real} = map(z -> forward(nn, z), x)
-forward(nn::TwoLayerNN, x::AbstractRange{T}) where {T <: Real} = map(z -> forward(nn, z), x)
 
 function forward!(nn::TwoLayerNN, x, inHL::Vector{T}, outHL::Vector{T}) where {T <: Real}
     inHL .= nn.w * x .+ nn.b
@@ -62,7 +71,7 @@ function forward!(nn::TwoLayerNN, x, inHL::Vector{T}, outHL::Vector{T}) where {T
 end
 
 # Trains the NN with the training data
-function train!(nn::TwoLayerNN, trainData::TrainingData)
+function train!(nn::TwoLayerNN, trainData::TrainingData; debug=false)
     # Create aliases for data
     steps = trainData.steps
 
@@ -73,10 +82,11 @@ function train!(nn::TwoLayerNN, trainData::TrainingData)
     )
 
     # Initialize optimizer
-    optimizer = AdamOptimizer(nn, trainData.learning_rate)
+    optimizer = SGDOptimzer(nn, trainData.learning_rate)
+    # optimizer = AdamOptimizer(nn, trainData.learning_rate)
 
     # Gradient descent
-    for _ = 1:steps
+    for step = 1:steps
         # Reset gradiants
         fill!(gradData.∇a, 0.)
         fill!(gradData.∇w, 0.)
@@ -89,6 +99,17 @@ function train!(nn::TwoLayerNN, trainData::TrainingData)
 
         # Apply the optimizer
         applyOptimizer!(optimizer, nn, gradData)
+
+        # TEST: print accuracy
+        current_risk = Rs(forward(nn, trainData.x), trainData.y)
+        if debug
+            println("Risk = ", current_risk)
+        end
+        if current_risk < TOLARANCY
+            println("Number of steps: ", step)
+            break
+        end
+        
     end
 end
 
