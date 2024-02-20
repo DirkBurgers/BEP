@@ -34,10 +34,19 @@ struct TwoLayerNN{T<:Real, F, G}
     α::T                  # Scaling factor
     σ::ActivationFunction{F, G}   # Activation function
 end
-TwoLayerNN(d::T, m::T, γ::Float64, γ′::Float64; σ=ReLu) where {T <: Integer} = begin
+TwoLayerNN(d::T, m::T, α::Float64, β₁::Float64, β₂::Float64; σ=ReLu) where {T <: Integer} = begin
     # Set seed
     Random.seed!(SEED)
 
+    # Initialize weights and biases
+    w::Matrix{Float64} = rand(Normal(0, β₂), m, d)
+    a::Vector{Float64} = rand(Normal(0, β₁), m)
+    b::Vector{Float64} = rand(Normal(0, β₂), m)
+
+    # Create the NN
+    TwoLayerNN(w, a, b, α, σ)
+end
+TwoLayerNN(d::T, m::T, γ::Float64, γ′::Float64; σ=ReLu) where {T <: Integer} = begin
     # Parameters
     α = m^(γ - γ′)
     β₁ = m^(-γ′)
@@ -47,13 +56,8 @@ TwoLayerNN(d::T, m::T, γ::Float64, γ′::Float64; σ=ReLu) where {T <: Integer
     # β₁ = m^(-(γ + γ′) / 2)
     # β₂ = m^(-(γ - γ′) / 2)
 
-    # Initialize weights and biases
-    w::Matrix{Float64} = rand(Normal(0, β₂), m, d)
-    a::Vector{Float64} = rand(Normal(0, β₁), m)
-    b::Vector{Float64} = rand(Normal(0, β₂), m)
-
     # Create the NN
-    TwoLayerNN(w, a, b, α, σ)
+    TwoLayerNN(d, m, α, β₁, β₂; σ=σ)
 end
 TwoLayerNN(d::T, m::T, γ, γ′; σ=ReLu) where {T <: Integer} = TwoLayerNN(d, m, convert(Float64, γ), convert(Float64, γ′), σ)
 
