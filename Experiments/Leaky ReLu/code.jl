@@ -11,16 +11,16 @@ dataX = [[-1/2], [-1/6], [1/6], [1/2]]
 dataY = [0.25, 0.03, 0.03, 0.25]
 
 # NN parameters
-m = 10_000
-γ = 1.0
+m = 1_000
+γ = 0.5
 γ′ = 0.0
 
 # Training parameters
-steps = 100_000_000
-learning_rate = 10.0
+steps = 800_000
+learning_rate = 0.1
 myTrainingData = MyTwoLayerNN.TrainingData(dataX, dataY, learning_rate, steps)
 
-for leaky_relu_const ∈ 0.99 : 0.1 : 0.99
+for leaky_relu_const ∈ 0.0 : 0.1 : 0.9
     # Reinstantiate the NN
     myNN = MyTwoLayerNN.TwoLayerNN(d, m, γ, γ′; σ=MyTwoLayerNN.LeakyReLU(leaky_relu_const))
     
@@ -28,7 +28,7 @@ for leaky_relu_const ∈ 0.99 : 0.1 : 0.99
     initParms = (a = copy(myNN.a), w = copy(myNN.w), b = copy(myNN.b))
 
     # Train the NN 
-    MyTwoLayerNN.train!(myNN, myTrainingData; debug = true)
+    MyTwoLayerNN.train!(myNN, myTrainingData; debug=false)
 
     # Create and save the plots
     f = Figure()
