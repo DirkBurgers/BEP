@@ -100,6 +100,9 @@ function train!(nn::TwoLayerNN, trainData::TrainingData; debug=false)
     optimizer = SGDOptimzer(nn, trainData.learning_rate)
     # optimizer = AdamOptimizer(nn, trainData.learning_rate)
 
+    # Allocate memory for predictions
+    predictions = similar(trainData.y)
+
     # Gradient descent
     for step = 1:steps
         # Reset gradiants
@@ -108,18 +111,24 @@ function train!(nn::TwoLayerNN, trainData::TrainingData; debug=false)
         fill!(gradData.∇b, 0.)
 
         # Sum the gradiant for all data points in the training data
-        for (x, y) ∈ zip(trainData.x, trainData.y)
-            updateGradiant!(gradData, nn, x, y)
+        for (i, (x, y)) ∈ enumerate(zip(trainData.x, trainData.y))
+            predicted = forward!(nn, x, gradData.inL, gradData.outL)
+            updateGradiant!(gradData, nn, x, y, predicted)
+            predictions[i] = predicted
         end
 
         # Apply the optimizer
         applyOptimizer!(optimizer, nn, gradData)
-
-        # TEST: print accuracy
-        current_risk = Rs(forward(nn, trainData.x), trainData.y)
+        
+        # Calculate the risk
+        current_risk = Rs(predictions, trainData.y)
+        
+        # Print the risk to be able to stop training with an intterupt
         if debug
             println("Risk = ", current_risk)
         end
+
+        # If TOLARANCY is reached, stop
         if current_risk < TOLARANCY
             println("Number of steps: ", step)
             break
@@ -129,7 +138,7 @@ function train!(nn::TwoLayerNN, trainData::TrainingData; debug=false)
 end
 
 # Calculates the ∇ of the NN with the ith data point and adds it to the total ∇ 
-function updateGradiant!(grads, nn::TwoLayerNN, x, y)
+function updateGradiant!(grads, nn::TwoLayerNN, x, y, predicted)
     # Aliases 
     inHL = grads.inL
     outHL = grads.outL
@@ -140,10 +149,6 @@ function updateGradiant!(grads, nn::TwoLayerNN, x, y)
     a = nn.a
     α = nn.α
 
-    # Calculate the prediction of ith data point and store 
-    # the values that went in and out the hidden layer
-    predicted = forward!(nn, x, inHL, outHL)
-
     # Calculate the gradiants
     ∂Risk∂p = (predicted - y) / (α * length(x))
 
@@ -151,6 +156,8 @@ function updateGradiant!(grads, nn::TwoLayerNN, x, y)
     @. ∇a += ∂Risk∂p * outHL
     @. ∇w += ∂Risk∂p * a * nn.σ.∂σ.(inHL) * x'
     @. ∇b += ∂Risk∂p * a * nn.σ.∂σ.(inHL)
+
+    return nothing
 end
 
 # Creates a short summary of the NN
@@ -172,6 +179,8 @@ function summary(nn::TwoLayerNN)
     b_min = min(nn.b ...)
     b_avg = sum(nn.b) / length(nn.b)
     println("Bias: max = $b_max, min = $b_min, avg = $b_avg")
+
+    return nothing
 end
 
 end;
