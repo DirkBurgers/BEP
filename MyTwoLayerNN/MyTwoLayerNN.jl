@@ -25,6 +25,7 @@ const LeakyReLU(c) = ActivationFunction(x -> _LeakyReLU(x, c), x -> _∂LeakyReL
 # Risk function
 Rs(x, y) = sum(z -> z^2, x - y) / (2 * length(x))
 ∂Rs(x, y) = sum(x - y) / length(x)
+∂Rs(x, y, n) = sum(x - y) / n
 
 # Creates structure to store the NN data
 struct TwoLayerNN{T<:Real, F, G}
@@ -113,7 +114,7 @@ function train!(nn::TwoLayerNN, trainData::TrainingData; debug=false)
         # Sum the gradiant for all data points in the training data
         for (i, (x, y)) ∈ enumerate(zip(trainData.x, trainData.y))
             predicted = forward!(nn, x, gradData.inL, gradData.outL)
-            updateGradiant!(gradData, nn, x, y, predicted)
+            updateGradiant!(gradData, nn, x, y, predicted, length(trainData.x))
             predictions[i] = predicted
         end
 
@@ -138,7 +139,7 @@ function train!(nn::TwoLayerNN, trainData::TrainingData; debug=false)
 end
 
 # Calculates the ∇ of the NN with the ith data point and adds it to the total ∇ 
-function updateGradiant!(grads, nn::TwoLayerNN, x, y, predicted)
+function updateGradiant!(grads, nn::TwoLayerNN, x, y, predicted, datapoints)
     # Aliases 
     inHL = grads.inL
     outHL = grads.outL
@@ -150,7 +151,7 @@ function updateGradiant!(grads, nn::TwoLayerNN, x, y, predicted)
     α = nn.α
 
     # Calculate the gradiants
-    ∂Risk∂p = (predicted - y) / (α * length(x))
+    ∂Risk∂p = ∂Rs(predicted, y, datapoints) / α
 
     # Update ∇
     @. ∇a += ∂Risk∂p * outHL
