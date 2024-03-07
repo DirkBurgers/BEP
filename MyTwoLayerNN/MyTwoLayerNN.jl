@@ -1,5 +1,6 @@
 module MyTwoLayerNN
 
+import Base: copy
 using Random, Distributions
 
 export TwoLayerNN, TrainingData, train!, forward, summary
@@ -21,6 +22,10 @@ const ReLu = ActivationFunction(_ReLu, _∂ReLu)
 _LeakyReLU(x, c) = x < zero(x) ? c * x : x
 _∂LeakyReLU(x, c) = x < zero(x) ? c : one(x)
 const LeakyReLU(c) = ActivationFunction(x -> _LeakyReLU(x, c), x -> _∂LeakyReLU(x, c))
+
+_SmoothLeakyReLU(x, c) = (x + c*x + sqrt((x - c * x)^2 + 0.1^2)) / 2
+_∂SmoothLeakyReLU(x, c) = (1 + c + (c - 1)^2 * x / sqrt((x - c*x)^2 + 0.1^2)) / 2
+const SmoothLeakyReLU(c) = ActivationFunction(x -> _SmoothLeakyReLU(x, c), x -> _∂SmoothLeakyReLU(x, c))
 
 # Risk function
 Rs(x, y) = sum(z -> z^2, x - y) / (2 * length(x))
@@ -125,7 +130,7 @@ function train!(nn::TwoLayerNN, trainData::TrainingData; debug=false)
         current_risk = Rs(predictions, trainData.y)
         
         # Print the risk to be able to stop training with an intterupt
-        if debug
+        if debug && step % 10_000 == 0
             println("Risk = ", current_risk)
         end
 
@@ -159,6 +164,11 @@ function updateGradiant!(grads, nn::TwoLayerNN, x, y, predicted, datapoints)
     @. ∇b += ∂Risk∂p * a * nn.σ.∂σ.(inHL)
 
     return nothing
+end
+
+# Create copy of MyTwoLayerNN
+function copy(nn::TwoLayerNN)
+    TwoLayerNN(copy(nn.w), copy(nn.a), copy(nn.b), nn.α, nn.σ)
 end
 
 # Creates a short summary of the NN
