@@ -92,7 +92,7 @@ function forward!(nn::TwoLayerNN, x, inHL::Vector{T}, outHL::Vector{T}) where {T
 end
 
 # Trains the NN with the training data
-function train!(nn::TwoLayerNN, trainData::TrainingData; debug=false)
+function train!(nn::TwoLayerNN, trainData::TrainingData; debug=false, callback=missing)
     # Create aliases for data
     steps = trainData.steps
 
@@ -132,6 +132,11 @@ function train!(nn::TwoLayerNN, trainData::TrainingData; debug=false)
         # Print the risk to be able to stop training with an intterupt
         if debug && step % 10_000 == 0
             println("Risk = ", current_risk)
+        end
+
+        # If callback function is given, call it
+        if !ismissing(callback)
+            callback(nn, step, current_risk)
         end
 
         # If TOLARANCY is reached, stop
