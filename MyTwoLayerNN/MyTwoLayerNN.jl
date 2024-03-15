@@ -6,7 +6,7 @@ using Random, Distributions
 export TwoLayerNN, TrainingData, train!, forward, summary
 
 # Constants
-const SEED = 123
+SEED = 123
 const TOLARANCY = 1e-6
 
 # Activation functions
@@ -92,7 +92,7 @@ function forward!(nn::TwoLayerNN, x, inHL::Vector{T}, outHL::Vector{T}) where {T
 end
 
 # Trains the NN with the training data
-function train!(nn::TwoLayerNN, trainData::TrainingData; debug=false, callback=missing)
+function train!(nn::TwoLayerNN, trainData::TrainingData; debug=false, callback=missing, stop_tol=true)
     # Create aliases for data
     steps = trainData.steps
 
@@ -140,7 +140,7 @@ function train!(nn::TwoLayerNN, trainData::TrainingData; debug=false, callback=m
         end
 
         # If TOLARANCY is reached, stop
-        if current_risk < TOLARANCY
+        if stop_tol && current_risk < TOLARANCY
             println("Number of steps: ", step)
             break
         end
