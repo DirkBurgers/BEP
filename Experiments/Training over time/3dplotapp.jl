@@ -27,9 +27,6 @@ nn_data = data["nn_data"]
 training_data = data["training_data"]
 
 # Extract data
-dataX = training_data.x
-dataY = training_data.y
-
 xmin, xmax = training_data.x |> Iterators.flatten |> extrema
 xvals = range(xmin, xmax, length=100)
 
@@ -67,6 +64,9 @@ yobs = Observable(output(nn_data[1], xvals))
 iobs = Observable(inflectionpoints(nn_data[1]))
 iyobs = Observable(output(nn_data[1], iobs[]))
 
+dataXobs = Observable(vcat(training_data.x...))
+dataYobs = Observable(training_data.y)
+
 # Options Menu
 gopts = fig[1, 1:2] = GridLayout()
 menu = Menu(gopts[1, 1], options = readdir(joinpath(@__DIR__, DATA_FOLDER)))
@@ -80,12 +80,19 @@ on(menu.selection) do selected_file
     global nn_data = data["nn_data"]
     global training_data = data["training_data"]
 
+    global xmin, xmax = training_data.x |> Iterators.flatten |> extrema
+    global xvals = range(xmin, xmax, length=100)
+
     # Reset slider
     set_close_to!(sl, 1)
+    sl.range = 1:1:length(t_data)
+
+    # Update line plot
+    updatelineplot()
 end
 
 # Create time slider
-sl = Slider(fig[3, :], range = 1:1:length(data["t_data"]), startvalue = 1)
+sl = Slider(fig[3, :], range = 1:1:length(t_data), startvalue = 1)
 
 lift(sl.value) do i
     # Update general observables
@@ -118,12 +125,22 @@ zlims!(ax, xyzmin[3], xyzmax[3])
 # Create initial line plot
 ax_line = Axis(fig[2, 2])
 lines!(ax_line, xvals, yobs, color=MYORANGE, linewidth=3)
-scatter!(ax_line, vcat(dataX...), dataY, markersize = 16)
+scat_data = scatter!(ax_line, dataXobs, dataYobs, markersize = 16)
 scatter!(ax_line, iobs, iyobs, marker=:star5, color=:darkgreen, markersize = 16)
 xlims!(ax_line, xmin * 1.1, xmax * 1.1)
 
+function updatelineplot()
+    # Update training data points
+    dataXobs[] = vcat(training_data.x...)
+    dataYobs[] = training_data.y
+
+    # Update axis 
+    autolimits!(ax_line)
+    xlims!(ax_line, xmin * 1.1, xmax * 1.1)
+end
+
 # Create figure title
-Label(fig[0, :], @lift("m = $(length(nn_data[1].b)), α = $(nn_data[1].α), t = $(@sprintf "%.1e" $tobs)"), fontsize = 40)
+Label(fig[0, :], @lift("m = $(length(nn_data[1].b)), α = $(nn_data[1].α), t = $(@sprintf "%.1e" $tobs), η = $(training_data.learning_rate)"), fontsize = 40)
 
 # Create function to enable zooming with mouse wheel
 on(events(ax.scene).scroll, priority=5) do (dx, dy)
@@ -134,11 +151,11 @@ on(events(ax.scene).scroll, priority=5) do (dx, dy)
     kb = events(ax.scene).keyboardbutton[]
 
     if kb.action == Keyboard.repeat
-        if kb.key == Keyboard.x
+        if kb.key == Keyboard.x || kb.key == Keyboard.w
             zoomamount = [0.9, 1.0, 1.0]
-        elseif kb.key == Keyboard.y
+        elseif kb.key == Keyboard.y || kb.key == Keyboard.b
             zoomamount = [1.0, 0.9, 1.0]
-        elseif kb.key == Keyboard.z
+        elseif kb.key == Keyboard.z || kb.key == Keyboard.a
             zoomamount = [1.0, 1.0, 0.9]
         end
     end 
