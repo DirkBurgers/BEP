@@ -33,8 +33,17 @@ xvals = range(xmin, xmax, length=100)
 # ------------------------------------------------------
 # ------------------ Helper functions ------------------
 # ------------------------------------------------------
-function deadneurons(nn)
-    return [(b ≤ -w * xmin) && (b ≤ -w * xmax) ? :gray : MYORANGE for (w, b) in zip(nn.w, nn.b)]
+function zone_neurons(nn)
+    number_of_actived_datapoints = sum(x -> [b > -w * x for (w, b) in zip(nn.w, nn.b)], training_data.x |> Iterators.flatten |> collect)
+
+    function tocolor(x)
+        x == 0 && return :gray 
+        x == 1 && return :purple
+        x == 2 && return :blue
+        x == 3 && return :green
+        x == 4 && return MYORANGE
+    end
+    return number_of_actived_datapoints .|> tocolor
 end
 
 function inflectionpoints(nn)
@@ -43,6 +52,17 @@ end
 
 function output(nn, vals)
     return [forward(nn, p) for p in vals]
+end
+
+function inflection_color(nn)
+    function tocolor(w, a)
+        a <= 0 && w <= 0 && return :purple
+        a <= 0 && return :red
+        w <= 0 && return :blue
+        w > 0 && return :darkgreen
+    end
+    
+    return [tocolor(w, a) for (w, a) in zip(nn.w, nn.a)] 
 end
 
 # ------------------------------------------------------
@@ -57,12 +77,13 @@ tobs = Observable(t_data[1])
 wobs = Observable(vec(nn_data[1].w))
 bobs = Observable(nn_data[1].b)
 aobs = Observable(nn_data[1].a)
-deadobs = Observable(deadneurons(nn_data[1]))
+zoneobs = Observable(zone_neurons(nn_data[1]))
 
 # Line plot observables
 yobs = Observable(output(nn_data[1], xvals))
 iobs = Observable(inflectionpoints(nn_data[1]))
 iyobs = Observable(output(nn_data[1], iobs[]))
+icobs = Observable(inflection_color(nn_data[1]))
 
 dataXobs = Observable(vcat(training_data.x...))
 dataYobs = Observable(training_data.y)
@@ -102,17 +123,18 @@ lift(sl.value) do i
     wobs[] = vec(nn_data[i].w)
     bobs[] = nn_data[i].b
     aobs[] = nn_data[i].a
-    deadobs[] = deadneurons(nn_data[i])
+    zoneobs[] = zone_neurons(nn_data[i])
 
     # Update line plot observables
     yobs[] = output(nn_data[i], xvals)
     iobs[] = inflectionpoints(nn_data[i])
     iyobs[] = output(nn_data[i], iobs[])
+    icobs[] = inflection_color(nn_data[i])
 end
 
 # Create 3d Scatter plot
 ax = Axis3(fig[2, 1], xlabel=L"w_k", ylabel=L"b_k", zlabel=L"a_k", viewmode=:fit)
-scat = scatter!(ax, wobs, bobs, aobs, color=deadobs)
+scat = scatter!(ax, wobs, bobs, aobs, color=zoneobs)
 
 # Initial xyz limits
 xyzmin = [-50.0, -50.0, -200.0]
@@ -126,7 +148,7 @@ zlims!(ax, xyzmin[3], xyzmax[3])
 ax_line = Axis(fig[2, 2])
 lines!(ax_line, xvals, yobs, color=MYORANGE, linewidth=3)
 scat_data = scatter!(ax_line, dataXobs, dataYobs, markersize = 16)
-scatter!(ax_line, iobs, iyobs, marker=:star5, color=:darkgreen, markersize = 16)
+scatter!(ax_line, iobs, iyobs, marker=:star5, color=icobs, markersize = 16)
 xlims!(ax_line, xmin * 1.1, xmax * 1.1)
 
 function updatelineplot()
@@ -183,6 +205,15 @@ on(events(ax.scene).keyboardbutton) do event
         set_close_to!(sl, sl.value[] + 1)
     elseif event.key == Keyboard.left
         set_close_to!(sl, sl.value[] - 1)
+    elseif event.key == Keyboard.u 
+        ax.azimuth = -0.5π
+        ax.elevation = π/2
+    elseif event.key == Keyboard.l
+        ax.azimuth = π
+        ax.elevation = 0.0
+    elseif event.key == Keyboard.f
+        ax.azimuth = π/2
+        ax.elevation = 0.0
     end
 end
 
