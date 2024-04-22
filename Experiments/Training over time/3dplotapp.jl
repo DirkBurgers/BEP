@@ -21,18 +21,32 @@ MYORANGE = Makie.RGB(213/255, 94/255, 0/255)
 
 # Load data 
 data = load(joinpath(@__DIR__, DATA_FOLDER, readdir(joinpath(@__DIR__, DATA_FOLDER))[1]))
+# data = load(joinpath(@__DIR__, DATA_FOLDER, "a-lag begin.jld2")) # Default data
 
 t_data = data["t_data"]
 nn_data = data["nn_data"]
 training_data = data["training_data"]
 
 # Extract data
+xflat = training_data.x |> Iterators.flatten |> collect
 xmin, xmax = training_data.x |> Iterators.flatten |> extrema
 xvals = range(xmin, xmax, length=100)
 
 # ------------------------------------------------------
 # ------------------ Helper functions ------------------
 # ------------------------------------------------------
+function color_of_zone(zone)
+    zone == 0 && return :gray 
+    zone == 1 && return :purple
+    zone == 2 && return :blue
+    zone == 3 && return :green
+    zone == 4 && return MYORANGE
+end
+
+function zone_neuron(w, b)
+    sum(x -> (b > -w * x), xflat) |> color_of_zone
+end
+
 function zone_neurons(nn)
     number_of_actived_datapoints = sum(x -> [b > -w * x for (w, b) in zip(nn.w, nn.b)], training_data.x |> Iterators.flatten |> collect)
 
@@ -64,6 +78,12 @@ function inflection_color(nn)
     
     return [tocolor(w, a) for (w, a) in zip(nn.w, nn.a)] 
 end
+
+# ------------------------------------------------------
+# ----------------- Neurons to follow ------------------
+# ------------------------------------------------------
+# neuron_path = [Point3f(nn.w[191], nn.b[191], nn.a[191]) for nn in nn_data]
+# neuron_path_colors = [zone_neuron(p[1], p[2]) for p in neuron_path]
 
 # ------------------------------------------------------
 # ------------------- Create 3D plot -------------------
@@ -101,6 +121,7 @@ on(menu.selection) do selected_file
     global nn_data = data["nn_data"]
     global training_data = data["training_data"]
 
+    global xflat = training_data.x |> Iterators.flatten |> collect
     global xmin, xmax = training_data.x |> Iterators.flatten |> extrema
     global xvals = range(xmin, xmax, length=100)
 
@@ -135,6 +156,7 @@ end
 # Create 3d Scatter plot
 ax = Axis3(fig[2, 1], xlabel=L"w_k", ylabel=L"b_k", zlabel=L"a_k", viewmode=:fit)
 scat = scatter!(ax, wobs, bobs, aobs, color=zoneobs)
+# lines!(ax, neuron_path; color=neuron_path_colors)
 
 # Initial xyz limits
 xyzmin = [-50.0, -50.0, -200.0]
@@ -159,6 +181,8 @@ function updatelineplot()
     # Update axis 
     autolimits!(ax_line)
     xlims!(ax_line, xmin * 1.1, xmax * 1.1)
+    ymin = minimum(training_data.y)
+    ylims!(ax_line, ymin - 0.1 * sign(ymin) * ymin, maximum(training_data.y) * 1.1)
 end
 
 # Create figure title
