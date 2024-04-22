@@ -13,18 +13,18 @@ let
 # Data parameters
 d = 1
 dataX = [[-1/2], [-1/6], [1/6], [1/2]]
-dataY = [1/4, 1/30, 1/30, 2/30 - 1/4]
+dataY = [1/4, 1/30, 1/30, 1/4]
 
 # NN parameters
 m = 1_000
 γ = 1.5
 γ′ = -0.5
 
-nn = TwoLayerNN(d, m, γ, γ′)
+nn = TwoLayerNN(d, m, γ, γ′; symmetric=true)
 
 # Training parameters
-learning_rate = 1000.0
-max_steps = 20_000
+learning_rate = 4000.0
+max_steps = 200_000
 
 training_data = TrainingData(dataX, dataY, learning_rate, max_steps)
 
@@ -32,7 +32,7 @@ training_data = TrainingData(dataX, dataY, learning_rate, max_steps)
 t_data = [0.0]
 nn_data = [copy(nn)]
 function savecallback(nn, step, loss)
-    if step % 100 == 0
+    if step % 1000 == 0
         push!(t_data, step * learning_rate)
         push!(nn_data, copy(nn))
     end
@@ -43,7 +43,7 @@ train!(nn, training_data; callback=savecallback)
 
 # Save data
 DATA_FOLDER = joinpath(@__DIR__, "Training data")
-jldsave(joinpath(DATA_FOLDER, "asymmetric begin.jld2"); t_data=t_data, nn_data=nn_data, training_data=training_data) 
+jldsave(joinpath(DATA_FOLDER, "a-lag symmetric.jld2"); t_data=t_data, nn_data=nn_data, training_data=training_data) 
 
 return nothing
 end
