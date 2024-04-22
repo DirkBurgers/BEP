@@ -27,6 +27,10 @@ _SmoothLeakyReLU(x, c) = (x + c*x + sqrt((x - c * x)^2 + 0.1^2)) / 2
 _∂SmoothLeakyReLU(x, c) = (1 + c + (c - 1)^2 * x / sqrt((x - c*x)^2 + 0.1^2)) / 2
 const SmoothLeakyReLU(c) = ActivationFunction(x -> _SmoothLeakyReLU(x, c), x -> _∂SmoothLeakyReLU(x, c))
 
+_Identity(x) = x
+_∂Identity(x) = one(x)
+const Identity = ActivationFunction(_Identity, _∂Identity)
+
 # Risk function
 Rs(x, y) = sum(z -> z^2, x - y) / (2 * length(x))
 ∂Rs(x, y) = sum(x - y) / length(x)
@@ -40,19 +44,27 @@ struct TwoLayerNN{T<:Real, F, G}
     α::T                  # Scaling factor
     σ::ActivationFunction{F, G}   # Activation function
 end
-TwoLayerNN(d::T, m::T, α::Float64, β₁::Float64, β₂::Float64; σ=ReLu) where {T <: Integer} = begin
+TwoLayerNN(d::T, m::T, α::Float64, β₁::Float64, β₂::Float64; σ=ReLu, symmetric=false) where {T <: Integer} = begin
     # Set seed
     Random.seed!(SEED)
 
     # Initialize weights and biases
-    w::Matrix{Float64} = rand(Normal(0, β₂), m, d)
-    a::Vector{Float64} = rand(Normal(0, β₁), m)
-    b::Vector{Float64} = rand(Normal(0, β₂), m)
+    m_random = symmetric ? m ÷ 2 : m
+
+    w::Matrix{Float64} = rand(Normal(0, β₂), m_random, d)
+    a::Vector{Float64} = rand(Normal(0, β₁), m_random)
+    b::Vector{Float64} = rand(Normal(0, β₂), m_random)
+
+    if symmetric 
+        w = [w; -w]
+        a = [a; a]
+        b = [b; b]
+    end
 
     # Create the NN
     TwoLayerNN(w, a, b, α, σ)
 end
-TwoLayerNN(d::T, m::T, γ::Float64, γ′::Float64; σ=ReLu) where {T <: Integer} = begin
+TwoLayerNN(d::T, m::T, γ::Float64, γ′::Float64; σ=ReLu, symmetric=false) where {T <: Integer} = begin
     # Parameters
     α = m^(γ - γ′)
     β₁ = m^(-γ′)
@@ -63,7 +75,7 @@ TwoLayerNN(d::T, m::T, γ::Float64, γ′::Float64; σ=ReLu) where {T <: Integer
     # β₂ = m^(-(γ - γ′) / 2)
 
     # Create the NN
-    TwoLayerNN(d, m, α, β₁, β₂; σ=σ)
+    TwoLayerNN(d, m, α, β₁, β₂; σ=σ, symmetric=symmetric)
 end
 TwoLayerNN(d::T, m::T, γ, γ′; σ=ReLu) where {T <: Integer} = TwoLayerNN(d, m, convert(Float64, γ), convert(Float64, γ′), σ)
 
@@ -92,7 +104,7 @@ function forward!(nn::TwoLayerNN, x, inHL::Vector{T}, outHL::Vector{T}) where {T
 end
 
 # Trains the NN with the training data
-function train!(nn::TwoLayerNN, trainData::TrainingData; debug=false, callback=missing, stop_tol=true)
+function train!(nn::TwoLayerNN, trainData::TrainingData; debug=false, callback=missing, callback2=missing, stop_tol=true)
     # Create aliases for data
     steps = trainData.steps
 
@@ -137,6 +149,12 @@ function train!(nn::TwoLayerNN, trainData::TrainingData; debug=false, callback=m
         # If callback function is given, call it
         if !ismissing(callback)
             callback(nn, step, current_risk)
+        end
+
+        # Newer version of callback function
+        if !ismissing(callback2)
+            stoptraining = callback2(nn, step, current_risk; ∇=gradData)
+            stoptraining isa Bool && break
         end
 
         # If TOLARANCY is reached, stop
