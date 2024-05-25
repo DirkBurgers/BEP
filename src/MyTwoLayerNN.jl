@@ -1,9 +1,10 @@
 module MyTwoLayerNN
 
-import Base: copy
+import Base: copy, summary
 using Random, Distributions
 
 export TwoLayerNN, TrainingData, train!, forward, summary
+export ReLu, LeakyReLU, SmoothLeakyReLU, Identity
 
 # Constants
 SEED = 123
