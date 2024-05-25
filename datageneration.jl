@@ -24,17 +24,17 @@ m = 1_000
 learning_rate = 0.5
 max_steps = 100_000_000
 
-training_data = MyTwoLayerNN.TrainingData(dataX, dataY, learning_rate, max_steps)
+training_data = TrainingData(dataX, dataY, learning_rate, max_steps)
 
 function simulationstep(training_data)
     # Create the NN
-    nn = MyTwoLayerNN.TwoLayerNN(d, m, γ, γ′)
+    nn = TwoLayerNN(d, m, γ, γ′)
 
     # Create copy of inital weights 
-    initialNN = MyTwoLayerNN.copy(nn)
+    initialNN = copy(nn)
 
     # Train the NN
-    MyTwoLayerNN.train!(nn, training_data; debug=true)
+    train!(nn, training_data; debug=true)
 
     jldsave(joinpath(DATA_FOLDER, "run g=$γ gp=$γ′.jld2"); initNN=initialNN, trainedNN=nn, trainingData=training_data)    
 end

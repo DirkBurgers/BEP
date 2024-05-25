@@ -1,15 +1,7 @@
 using LinearAlgebra
 using JLD2
+using MyTwoLayerNN
 
-# Load MyTwoLayerNN if not loaded yet
-(@isdefined MyTwoLayerNN) == false ?
-begin
-    include("../../MyTwoLayerNN/MyTwoLayerNN.jl")
-    using .MyTwoLayerNN
-    println("Included MyTwoLayerNN")
-end : nothing
-
-let
 # Data parameters
 d = 1
 dataX = [[-1/2], [-1/6], [1/6], [1/2]]
@@ -42,8 +34,5 @@ end
 train!(nn, training_data; callback=savecallback)
 
 # Save data
-DATA_FOLDER = joinpath(@__DIR__, "Training data")
-jldsave(joinpath(DATA_FOLDER, "a-lag symmetric.jld2"); t_data=t_data, nn_data=nn_data, training_data=training_data) 
-
-return nothing
-end
+DATA_FOLDER = "training"
+jldsave(joinpath("data", DATA_FOLDER, "another test.jld2"); t_data=t_data, nn_data=nn_data, training_data=training_data)
