@@ -1,18 +1,17 @@
 using Printf, LinearAlgebra
 using JLD2, GLMakie
+using MyTwoLayerNN
 
-# Load MyTwoLayerNN if not loaded yet
-(@isdefined MyTwoLayerNN) == false ?
-begin
-    include("../../MyTwoLayerNN/MyTwoLayerNN.jl")
-    using .MyTwoLayerNN
-    println("Included MyTwoLayerNN")
-end : nothing
+
+println("Loaded all packages")
+
 
 # ------------------------------------------------------
 # --------------------- Settings -----------------------
 # ------------------------------------------------------
-DATA_FOLDER = "Training data"
+
+# Relative path from root folder. If this does not work use an absolute path.
+DATA_FOLDER = "data/training" 
 
 # ------------------------------------------------------
 # ------------------ Initialization --------------------
@@ -20,7 +19,7 @@ DATA_FOLDER = "Training data"
 MYORANGE = Makie.RGB(213/255, 94/255, 0/255)
 
 # Load data 
-data = load(joinpath(@__DIR__, DATA_FOLDER, readdir(joinpath(@__DIR__, DATA_FOLDER))[1]))
+data = load(joinpath(DATA_FOLDER, readdir(DATA_FOLDER)[1]))
 # data = load(joinpath(@__DIR__, DATA_FOLDER, "a-lag begin.jld2")) # Default data
 
 t_data = data["t_data"]
@@ -110,11 +109,11 @@ dataYobs = Observable(training_data.y)
 
 # Options Menu
 gopts = fig[1, 1:2] = GridLayout()
-menu = Menu(gopts[1, 1], options = readdir(joinpath(@__DIR__, DATA_FOLDER)))
+menu = Menu(gopts[1, 1], options = readdir(DATA_FOLDER))
 
 on(menu.selection) do selected_file
     # Load data
-    data = load(joinpath(@__DIR__, DATA_FOLDER, selected_file))
+    data = load(joinpath(DATA_FOLDER, selected_file))
 
     # Update data
     global t_data = data["t_data"]
