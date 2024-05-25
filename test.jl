@@ -1,6 +1,6 @@
 using BenchmarkTools, JLD2
 
-# include("../MyTwoLayerNN/MyTwoLayerNN.jl")
+include("../MyTwoLayerNN/MyTwoLayerNN.jl")
 # include("../MyTwoLayerNN/plotsNN.jl")
 
 import .MyTwoLayerNN
@@ -11,7 +11,7 @@ function main()
     m = 1_000    # Number of hidden neurons
     γ = 1.5
     γ′ = -0.5
-    myNN = MyTwoLayerNN.TwoLayerNN(d, m, γ, γ′; symmetric = true)
+    myNN = MyTwoLayerNN.TwoLayerNN(d, m, γ, γ′; σ=MyTwoLayerNN.LeakyReLU(0.95))
 
     # Create training data 
     n = 4
@@ -20,7 +20,7 @@ function main()
     # dataX = [[-1/2, -1/2], [-1/3, -1/3], [1/3, 1/3], [1/2, 1/2]]
     # dataY = [0.25, 0.03, 0.03, 0.25]
 
-    learning_rate = 4000.0 # 0.01 for γ 0.5, 1.0 and 1.0 for γ = 1.75
+    learning_rate = 1000.0 # 0.01 for γ 0.5, 1.0 and 1.0 for γ = 1.75
     steps = 1_000_000
     myTrainingData = MyTwoLayerNN.TrainingData(dataX, dataY, learning_rate, steps)
 
