@@ -1,9 +1,8 @@
 using JLD2
-
-include("../../MyTwoLayerNN/MyTwoLayerNN.jl")
+using MyTwoLayerNN
 
 # Create DATA_FOLDER
-DATA_FOLDER = joinpath(@__DIR__, "phase diagram")
+DATA_FOLDER = joinpath(@__DIR__, "data", "test")
 if !isdir(DATA_FOLDER)
     mkdir(DATA_FOLDER)
 end
