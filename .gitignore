@@ -1,0 +1,4 @@
+# Remove all image files
+*.png
+*.pdf
+*.mp4
