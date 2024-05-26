@@ -1,6 +1,6 @@
-using Makie, CairoMakie
+using CairoMakie
+using MyTwoLayerNN
 
-include("../../MyTwoLayerNN/MyTwoLayerNN.jl")
 include("../experimentplots.jl")
 
 FILE_PATH = dirname(@__FILE__) * "\\"
@@ -27,16 +27,16 @@ function simulationstep(ξ; debug = false)
 
     # Change learning rate depending on α and m
     learning_rate = α / m
-    myTrainingData = MyTwoLayerNN.TrainingData(dataX, dataY, learning_rate, steps)
+    myTrainingData = TrainingData(dataX, dataY, learning_rate, steps)
 
     # Reinstantiate the NN
-    myNN = MyTwoLayerNN.TwoLayerNN(d, m, α, β₁, β₂)
+    myNN = TwoLayerNN(d, m, α, β₁, β₂)
     
     # Create copy of initial weights and biases
     initParms = (a = copy(myNN.a), w = copy(myNN.w), b = copy(myNN.b))
 
     # Train the NN 
-    MyTwoLayerNN.train!(myNN, myTrainingData; debug)
+    train!(myNN, myTrainingData; debug)
 
     return myTrainingData, initParms, myNN
 end
